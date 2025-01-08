@@ -15,6 +15,8 @@ OUTPUT_DIR = "D:/PUCP/chamba/testFolder/output"
 TEMP_DIR = "D:/PUCP/chamba/testFolder"
 COLUMNAS = "0,1,2,3,4,5,6,7"
 
+LOCAL_DIR = "D:/PUCP/chamba/testFolder"
+
 # Ruta al programa en C
 C_PROGRAM_PATH = "D:/PUCP/chamba/testFolder/DWDataReader/DWDataReaderAdapted.exe"
 
@@ -126,7 +128,7 @@ def process_files(input_file, output_folder, columnas):
         print(f"Error procesando el archivo {input_file}: {e}")
 
 
-def process_from_queue():
+def process_from_queue(updateFiles):
     while True:
         task = file_queue.get()
         if task is None:
@@ -136,8 +138,9 @@ def process_from_queue():
             # Extraer solo el nombre del archivo
             file_name = os.path.basename(input_file)
 
-            # Actualizar el archivo antes de procesarlo
-            update_file(file_name)
+            if(updateFiles):
+                # Actualizar el archivo antes de procesarlo
+                update_file(file_name)
 
             # Procesar el archivo actualizado
             process_files(input_file, output_folder, columnas)
@@ -159,10 +162,11 @@ if __name__ == "__main__":
     print("2. Procesar todos los archivos .dxd en la carpeta local.")
     choice = input("Ingrese su elección (1 o 2): ")
 
-    worker_thread = Thread(target=process_from_queue, daemon=True)
-    worker_thread.start()
+    
 
     if choice == "1":
+        worker_thread = Thread(target=process_from_queue,args=(True,), daemon=True)
+        worker_thread.start()
         try:
             initialize_detected_files()
             print("Iniciando monitoreo del servidor SFTP...")
@@ -174,13 +178,14 @@ if __name__ == "__main__":
             file_queue.put(None)
             worker_thread.join()
     elif choice == "2":
+        worker_thread = Thread(target=process_from_queue,args=(False,), daemon=True)
+        worker_thread.start()
         print("Procesando archivos locales...")
-        local_files = [f for f in os.listdir(TEMP_DIR) if f.endswith(".dxd")]
+        local_files = [f for f in os.listdir(LOCAL_DIR) if f.endswith(".dxd")]
         for file in local_files:
-            file_queue.put((os.path.join(TEMP_DIR, file), OUTPUT_DIR, COLUMNAS))
+            file_queue.put((os.path.join(LOCAL_DIR, file), OUTPUT_DIR, COLUMNAS))
         file_queue.put(None)
         worker_thread.join()
     else:
         print("Opción inválida. Terminando el programa.")
         file_queue.put(None)
-        worker_thread.join()
